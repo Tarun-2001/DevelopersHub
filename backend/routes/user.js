@@ -2,6 +2,9 @@ const express = require('express')
 const User = require('../models/User')
 const {body,validationResult} = require('express-validator');
 const router = express.Router()
+const bcrypt = require("bcrypt")  // Importing bcrypt for password hashing      
+const jwt = require('jsonwebtoken');    // Importng jwt for token type authentication
+const JWT_SECREAT = "This is jwt secreat token"
 
 // 1.User Register Api 
 router.post('/register',[
@@ -9,20 +12,62 @@ router.post('/register',[
     body('email', 'Invalid email').isEmail(),
     body('password', 'The minimum password length is 4 characters').isLength({min: 4}),
     body('Confirmpassword', 'The minimum Confirmpassword length is 4 characters').isLength({min: 4}),
-  ],(req,res)=>{
+  ],async (req,res)=>{
     try{
         const {fullname,email,mobile,skill,password,Confirmpassword} = req.body;
-        const user = new User({
-            fullname,email,mobile,skill,password,Confirmpassword
-        })
         const valid = validationResult(req)
-        if(!valid.isEmpty()){ return res.status(400).send(valid)} 
-        user.save()
-        res.send("success")
+        let success =false
+        if(!valid.isEmpty()) {  success =false;   return res.status(400).send(valid)} // Throwing error if fields are not correct
+        let usr = await User.findOne({email:req.body.email})
+        if(usr) {   success =false;  return res.status(400).send("User Already Exits in our database")}
+        if(password!=Confirmpassword) {  success =false ;  return res.status(400).send("Password and Confrim Passowrds are not matched")} 
+        const salt = await bcrypt.genSalt(10)
+        const encyptedPwd = await bcrypt.hash(password,salt)
+        const encyptedConfirmPwd = await bcrypt.hash(Confirmpassword,salt)
+        const user = new User({ // Creating a record
+            fullname,email,mobile,skill,
+            password:encyptedPwd,
+            Confirmpassword:encyptedConfirmPwd
+        })
+        user.save() // Saving into the database
+        const data = {
+            user :{
+                id:user.id
+            }
+        }
+        success =true;
+        const authToken = jwt.sign(data,JWT_SECREAT)
+        res.send({success,"Message":"Generated Auth token Successfully",key:authToken,})
     }
     catch{
-        res.status(500).send(error.message)
+        res.status(500).send(error)
     }
 })
 
+// 2. Login API
+router.post('/login',[
+    body('email','Invalid Email').isEmail(),
+    body('password','Minimum no of characters should be 4').isLength({min:4})
+],async (req,res)=>{
+    try{
+        const valid = validationResult(req);
+        let success =false;
+        if(!valid.isEmpty()){  success = false;  return res.status(400).send(valid)}
+        const user = await User.findOne({email:req.body.email})
+        if(!user){success = false; return res.status(400).send("User Does not exit")}
+        const result = await bcrypt.compare(req.body.password,user.password)
+        if(!result) {success = false; return res.status(400).send("Check the credentials")}
+        const data ={
+            user:{
+                id:user.id
+            }
+        }
+        const autht_oken = jwt.sign(data,JWT_SECREAT)
+        success = true;
+        res.send({status:success,Message:"Auth token generated successfullu",autht_oken:autht_oken})
+    }
+    catch(error){
+        res.status(500).send(error)
+    }
+})
 module.exports = router
