@@ -4,6 +4,7 @@ const {body,validationResult} = require('express-validator');
 const router = express.Router()
 const bcrypt = require("bcrypt")  // Importing bcrypt for password hashing      
 const jwt = require('jsonwebtoken');    // Importng jwt for token type authentication
+const authentication = require('../middleware/authentication')
 const JWT_SECREAT = "This is jwt secreat token"
 
 // 1.User Register Api 
@@ -36,7 +37,7 @@ router.post('/register',[
             }
         }
         success =true;
-        const authToken = jwt.sign(data,JWT_SECREAT)
+        const authToken = jwt.sign(data,JWT_SECREAT,jwt.TokenExpiredError(3600000))
         res.send({success,"Message":"Generated Auth token Successfully",key:authToken,})
     }
     catch{
@@ -62,9 +63,20 @@ router.post('/login',[
                 id:user.id
             }
         }
-        const autht_oken = jwt.sign(data,JWT_SECREAT)
+        const autht_oken = jwt.sign(data,JWT_SECREAT,jwt.TokenExpiredError(3600000))
         success = true;
-        res.send({status:success,Message:"Auth token generated successfullu",autht_oken:autht_oken})
+        res.send({status:success,Message:"Auth token generated successfully",autht_oken:autht_oken})
+    }
+    catch(error){
+        res.status(500).send(error)
+    }
+})
+
+// 3. Fetching all profiles
+router.get('/fetchall',authentication, async (req,res)=>{
+    try{
+        const data = await User.find();
+        res.send(data); 
     }
     catch(error){
         res.status(500).send(error)
