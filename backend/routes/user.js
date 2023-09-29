@@ -60,7 +60,7 @@ router.post('/login',[
         if(!result) {success = false; return res.status(400).send("Check the credentials")}
         const data ={
             user:{
-                id:user.id
+                id:user._id
             }
         }
         const autht_oken = jwt.sign(data,JWT_SECREAT,jwt.TokenExpiredError(3600000))
@@ -74,12 +74,34 @@ router.post('/login',[
 
 // 3. Fetching all profiles
 router.get('/fetchall',authentication, async (req,res)=>{
+    let success =false;
     try{
         const data = await User.find();
-        res.send(data); 
+        success = this.true
+        res.send({success, data}); 
     }
     catch(error){
-        res.status(500).send(error)
+        success = false
+        res.status(500).send(error.message)
     }
 })
+
+// 4. Fetching user own profile 
+router.get('/myprofile',authentication,async(req,res)=>{
+    let success =false
+    try{
+        const userId = req.user.id
+        console.log(userId)
+        const data = await User.findById(userId)
+        if(!data){ return res.status(400).send(data)}
+        success = true
+        res.send({success,data})
+    }
+    catch(error){
+        success =false
+        return res.status(500).send({errorMessage :error.message})
+    }
+})
+
+
 module.exports = router

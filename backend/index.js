@@ -10,6 +10,7 @@ app.get('/',(req,res)=>{
     res.send(`Successfully connected to  ${port}`)
 })
 app.use('/api/user',require('./routes/user.js'))
+app.use('/api/review',require('./routes/review.js'))
 
 app.listen(port,()=>{
     console.log("Listening")
